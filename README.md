@@ -13,7 +13,7 @@
 
 ## create the required objects
 
-### run the following script to create the required objects in the snowflake environment
+#### run the following script to create the required objects in the snowflake environment
 
 ### create warehouse
 ```bash
