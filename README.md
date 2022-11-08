@@ -13,14 +13,16 @@
 
 ## create the required objects
 
+### run the following script to create the required objects in the snowflake environment
+
 ### create warehouse
 ```bash
-create warehouse ayo_warehouse
+create warehouse ayo_warehouse;
 ```
 
 ### create database
 ```bash
-create database demo
+create database demo;
 ```
 
 ### create schemas
@@ -44,5 +46,3 @@ null_if = ('\\N');
 
 ### create storage integration
 
-
-##
