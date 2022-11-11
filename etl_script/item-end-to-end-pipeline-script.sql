@@ -1,20 +1,3 @@
---create tables
---create file format
--- create storage integration
---create staging area
---create task for initial load using copy statement
-
-
-
---N.B;start child task before parent task
-
--- s3 - stage area - stage table(using pipe) - stream table(using stream) - raw table(task) - stream table(using stream) - dim table(using task)
-
---created all the tasks in transformed schema
---created pipe in staging schema
---conditions satisfied : insert, update, delete, picks the latest change for the same id in a stream
-
-
 create or replace table raw.raw_item (
         item_id varchar,
         item_desc varchar,
@@ -226,3 +209,12 @@ select * from stg.stg_item_stm; --raw stream
 select * from raw.raw_item; -- raw table
 select * from raw.dim_item_stm; --transformed stream
 select * from transformed.dim_item; --transformed table
+
+
+--N.B;start child task before parent task
+
+-- s3 - stage area - stage table(using pipe) - stream table(using stream) - raw table(task) - stream table(using stream) - dim table(using task)
+
+--created all the tasks in transformed schema
+--created pipe in staging schema
+--conditions satisfied : insert, update, delete, picks the latest change for the same id in a stream
