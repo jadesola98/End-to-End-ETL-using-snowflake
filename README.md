@@ -46,7 +46,7 @@ null_if = ('\\N');
 ```
 
 ### create storage integration
-#### setup storage integrations to allow Snowflake to read data from and write data to an Amazon S3 bucket. The steps involved in setting up a storage integration can be found in the following link https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration.html
+##### setup storage integrations to allow Snowflake to read data from and write data to an Amazon S3 bucket. The steps involved in setting up a storage integration can be found in the following link https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration.html
 
 
 ### create a table for each entity in each schema
@@ -57,11 +57,13 @@ null_if = ('\\N');
 
 ### create a stream on the stage table
 
-#### to achieve the desired workflow some tasks are created.
-the first task is created to pause the pipe, this task is the parent task and is triggered after data is put in the s3 bucket,reflects in the external stage and is put into the stage table by the pipe,
-the second task, a task that reads from the stage stream is immediately triggered(because it is the first child task i.e it depends on the parent task) to put data into the raw table based on the conditions defined in the task
-the third task carries out the same action as the previous task but is only triggered after the previous task and reads from the raw stream to the transformed table
-the fourth task is triggered after the third task and it truncates the staging table to prepare it for the next run
-the last task is triggered after the fourth task and it resumes the pipe in other to extract the new data in the external stage into the staging table.
+## To achieve the desired workflow some tasks are created.
+* the first task is created to pause the pipe, this task is the parent task and is triggered after data is put in the s3 bucket,reflects in the external stage and is put into the stage table by the pipe.
+* the second task, a task that reads from the stage stream is immediately triggered(because it is the first child task i.e it depends on the parent task) to put data into the raw table based on the conditions defined in the task
+* the third task carries out the same action as the previous task but is only triggered after the previous task and reads from the raw stream to the transformed table
+* the fourth task is triggered after the third task and it truncates the staging table to prepare it for the next run
+* the last task is triggered after the fourth task and it resumes the pipe in other to extract the new data in the external stage into the staging table.
 
+#### N.B:start child task before parent task
+####     cross schema task linking is not possible
 
