@@ -46,7 +46,7 @@ null_if = ('\\N');
 ```
 
 ### create storage integration
-##### setup storage integrations to allow Snowflake to read data from and write data to an Amazon S3 bucket. The steps involved in setting up a storage integration can be found in the following link https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration.html
+#### setup storage integrations to allow Snowflake to read data from and write data to an Amazon S3 bucket. The steps involved in setting up a storage integration can be found in the following link https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration.html
 
 
 ### create a table for each entity in each schema
