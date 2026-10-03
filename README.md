@@ -11,7 +11,7 @@ AWS S3 · AWS SQS · Snowflake (Snowpipe, streams, tasks, storage integration) �
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     A[CSV files] --> B[(Amazon S3<br/>landing/)]
     B -- event notification --> C[SQS]
     C --> D[Snowpipe]
@@ -34,7 +34,7 @@ flowchart LR
 | Order | Task | What it does |
 |---|---|---|
 | 1 (root) | `pause_pipe_<entity>` | Pauses the pipe so no new files load mid-run |
-| 2 | `<entity>_raw_tsk` | `MERGE`s the stream into the `raw` table (insert new, update existing) |
+| 2 | `<entity>_raw_tsk` | Merges the stream into the `raw` table (insert new, update existing) |
 | 3 | `dim_<entity>_tsk` / `fact_order_tsk` | Loads the `transformed` dimension or fact table |
 | 4 | `truncate_staging_table_<entity>` | Clears the staging table for the next batch |
 | 5 | `play_pipe_<entity>` | Resumes the pipe |
