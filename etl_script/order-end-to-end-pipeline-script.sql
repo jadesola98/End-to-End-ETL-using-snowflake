@@ -11,7 +11,7 @@ create or replace table raw.raw_order (
     store_name varchar,
     order_quantity varchar,
     sale_price varchar,
-    disount_amt varchar,
+    discount_amt varchar,
     coupon_amt varchar,
     net_paid varchar,
     net_paid_tax varchar,
@@ -36,7 +36,7 @@ create or replace table stg.stg_order (
     store_name varchar,
     order_quantity varchar,
     sale_price varchar,
-    disount_amt varchar,
+    discount_amt varchar,
     coupon_amt varchar,
     net_paid varchar,
     net_paid_tax varchar,
@@ -53,7 +53,7 @@ create or replace table stg.stg_order (
       order_count number,
       order_quantity number,
       sale_price number(20,2),
-      disount_amt number(20,2),
+      discount_amt number(20,2),
       coupon_amt number(20,2),
       net_paid number(20,2),
       net_paid_tax number(20,2),
@@ -64,7 +64,6 @@ create or replace table stg.stg_order (
 
 --create streams 
 create or replace stream stg.stg_order_stm on table stg.stg_order;
-create or replace stream raw.fact_order_stm on table raw.raw_order;
 
 
 
@@ -124,7 +123,7 @@ when matched
     raw_order.store_name = stg_order_stm.store_name,
     raw_order.order_quantity = stg_order_stm.order_quantity,
     raw_order.sale_price = stg_order_stm.sale_price,
-    raw_order.disount_amt = stg_order_stm.disount_amt,
+    raw_order.discount_amt = stg_order_stm.discount_amt,
     raw_order.coupon_amt = stg_order_stm.coupon_amt,
     raw_order.net_paid = stg_order_stm.net_paid,
     raw_order.net_paid_tax = stg_order_stm.net_paid_tax,
@@ -143,7 +142,7 @@ when matched
     store_name ,
     order_quantity ,
     sale_price ,
-    disount_amt ,
+    discount_amt ,
     coupon_amt ,
     net_paid ,
     net_paid_tax ,
@@ -161,7 +160,7 @@ when matched
     stg_order_stm.store_name ,
     stg_order_stm.order_quantity ,
     stg_order_stm.sale_price ,
-    stg_order_stm.disount_amt ,
+    stg_order_stm.discount_amt ,
     stg_order_stm.coupon_amt ,
     stg_order_stm.net_paid ,
     stg_order_stm.net_paid_tax ,
@@ -173,8 +172,6 @@ when matched
 create or replace task transformed.fact_order_tsk
 warehouse = ayo_warehouse 
 after transformed.raw_order_tsk
-when
-  system$stream_has_data('raw.fact_order_stm')
 as
 insert overwrite into transformed.fact_order (
 order_date,
@@ -183,7 +180,7 @@ item_dim_key ,
 order_count,
 order_quantity ,
 sale_price ,
-disount_amt ,
+discount_amt ,
 coupon_amt ,
 net_paid ,
 net_paid_tax ,
@@ -195,19 +192,17 @@ select
       count(1) as order_count,
       sum(ro.order_quantity) ,
       sum(ro.sale_price) ,
-      sum(ro.disount_amt) ,
+      sum(ro.discount_amt) ,
       sum(ro.coupon_amt) ,
       sum(ro.net_paid) ,
       sum(ro.net_paid_tax),
       sum(ro.net_profit)  
   from raw.raw_order ro 
-    join dim_customer dc on dc.customer_id = ro.customer_id
-    join dim_item di on di.item_id = ro.item_id 
-    --and di.item_desc = ro.item_desc 
-    and di.end_date is null
+    join transformed.dim_customer dc on dc.customer_id = ro.customer_id
+    join transformed.dim_item di on di.item_id = ro.item_id 
     group by 
         ro.order_date,
-        dc.customer_dim_key ,
+        dc.customer_dim_key,
         di.item_dim_key
         order by ro.order_date; 
         
@@ -231,18 +226,19 @@ as
   
   
   
-alter task pause_pipe_order resume;
-alter task pause_pipe_order suspend;
+-- start the pipeline: resume child tasks first, root task last
+alter task transformed.play_pipe_order resume;
+alter task transformed.truncate_staging_table_order resume;
+alter task transformed.fact_order_tsk resume;
+alter task transformed.raw_order_tsk resume;
+alter task transformed.pause_pipe_order resume;
 
-alter task raw_order_tsk resume;
-alter task fact_order_tsk resume;
-alter task truncate_staging_table_order resume;
-alter task play_pipe_order resume;
-
-alter task raw_order_tsk suspend;
-alter task fact_order_tsk suspend;
-alter task truncate_staging_table_order suspend;
-alter task play_pipe_order suspend;
+-- stop the pipeline: suspend root task first
+alter task transformed.pause_pipe_order suspend;
+alter task transformed.raw_order_tsk suspend;
+alter task transformed.fact_order_tsk suspend;
+alter task transformed.truncate_staging_table_order suspend;
+alter task transformed.play_pipe_order suspend;
 
 
 select *  from table(information_schema.task_history()) 
@@ -257,134 +253,14 @@ show streams;
 select * from stg.stg_order; --stage table
 select * from stg.stg_order_stm; --raw stream
 select * from raw.raw_order; -- raw table
-select * from raw.fact_order_stm; --transformed stream
 select * from transformed.fact_order; --transformed table
 
 list @landing;
 
-TRUNCATE table stg.stg_customer;
 
 --resume pipe
-select system$pipe_force_resume('stg.stg_order_pipe')
+select system$pipe_force_resume('stg.stg_order_pipe');
 
 
 --check status of pipe
 select system$pipe_status('stg.stg_order_pipe'); 
-
-
-
-
-/****
-create or replace table stg.control_order (
-    order_date varchar,
-    order_time varchar,
-    item_id varchar,
-    item_desc varchar,
-    customer_id varchar,
-    salutation varchar,
-    first_name varchar,
-    last_name varchar,
-    store_id varchar,
-    store_name varchar,
-    order_quantity varchar,
-    sale_price varchar,
-    disount_amt varchar,
-    coupon_amt varchar,
-    net_paid varchar,
-    net_paid_tax varchar,
-    net_profit varchar
-);
-
-create or replace task transformed.truncate_control_table_order
-  warehouse = ayo_warehouse 
-  after transformed.fact_order_tsk
-as
-  truncate table if exists stg.control_order; 
-  
-  
-  
-insert into transformed.fact_order (
-order_date,
-customer_dim_key ,
-item_dim_key ,
-order_count,
-order_quantity ,
-sale_price ,
-disount_amt ,
-coupon_amt ,
-net_paid ,
-net_paid_tax ,
-net_profit) 
-select 
-      ro.order_date,
-      dc.customer_dim_key ,
-      di.item_dim_key,
-      count(1) as order_count,
-      sum(ro.order_quantity) ,
-      sum(ro.sale_price) ,
-      sum(ro.disount_amt) ,
-      sum(ro.coupon_amt) ,
-      sum(ro.net_paid) ,
-      sum(ro.net_paid_tax),
-      sum(ro.net_profit)  
-  from raw.raw_order ro 
-    join dim_customer dc on dc.customer_id = ro.customer_id
-    join dim_item di on di.item_id = ro.item_id 
-    --and di.item_desc = ro.item_desc 
-    and di.end_date is null
-    group by 
-        ro.order_date,
-        dc.customer_dim_key,
-        di.item_dim_key
-        order by ro.order_date; 
-        
-select * from fact_order;        
-        
-select
-      ro.order_date,
-      dc.customer_dim_key,
-      di.item_dim_key,
-      sum(ro.order_quantity) ,
-      sum(ro.sale_price) ,
-      sum(ro.disount_amt) ,
-      sum(ro.coupon_amt) ,
-      sum(ro.net_paid) ,
-      sum(ro.net_paid_tax),
-      sum(ro.net_profit)  
-  from raw.raw_order ro 
-    join dim_customer dc on dc.customer_id = ro.customer_id
-    join dim_item di on di.item_id = ro.item_id 
-    --and di.item_desc = ro.item_desc 
-    and di.end_date is null
-    group by
-        ro.order_date,    
-        dc.customer_dim_key,
-        di.item_dim_key
-        
-        
-select * from dim_customer
-where customer_id in
-(select customer_id from raw.raw_order)
-
-select * from dim_item
-where item_id in
-(select item_id from raw.raw_order)
-
-
-select * from dim_item
-select * from raw.raw_order
-
-update raw.raw_order
-set customer_id = 'AAAAAAAALKBJCPAA'
-where first_name = 'Sarah'
-
-update raw.raw_order
-set item_id = 'AAAAAAAAABHKEAAA'
-where first_name = 'Sarah'
-
-update dim_item
-set end_date = null
-where item_id = 'AAAAAAAAABHKEAAA';
-
-truncate table fact_order;
-/***
