@@ -67,7 +67,7 @@ The fact table joins raw orders to both dimensions to swap natural IDs for surro
 ├── source_data/                                  # sample CSV files
 ├── setup.sql                                     # warehouse, schemas, file format, integration, stage
 ├── architecture-diagram.png
-└── object naming convention - Sheet1.pdf
+└── naming-conventions.pdf
 ```
 
 ## How to run
