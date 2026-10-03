@@ -62,9 +62,8 @@ create or replace table stg.stg_order (
     
 
 
---create streams 
+--create stream 
 create or replace stream stg.stg_order_stm on table stg.stg_order;
-
 
 
 use schema stg;
@@ -72,23 +71,12 @@ create or replace pipe stg.stg_order_pipe
 auto_ingest=true 
 as
 copy into stg.stg_order
-from @landing/landing/order
+from @stg.landing/landing/order
 file_format = (type = 'CSV', skip_header=1, error_on_column_count_mismatch=false);
+       
 
 
-
-
-
-
-
--- task to insert and update record into order table
-
-        
-        
-        
-
-
--- s3 - stage area - stage table(using pipe) - stream table(using stream) - raw table(task) - stream table(using stream) - dim table(using task)
+-- s3 - stage area - stage table(using pipe) - stream table(using stream) - raw table(task) - stream table(using stream) - fact table(using task)
 --create a task to pause pipe when stream has data
 use schema transformed;
 create or replace task transformed.pause_pipe_order
@@ -255,7 +243,7 @@ select * from stg.stg_order_stm; --raw stream
 select * from raw.raw_order; -- raw table
 select * from transformed.fact_order; --transformed table
 
-list @landing;
+list @stg.landing;
 
 
 --resume pipe
