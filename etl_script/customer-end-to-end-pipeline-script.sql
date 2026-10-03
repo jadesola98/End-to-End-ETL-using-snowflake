@@ -78,7 +78,7 @@ merge into raw.raw_customer
 using stg.stg_customer_stm on
 raw_customer.customer_id = stg_customer_stm.customer_id
 when matched
---covers updates and deletes
+--update existing customers
  then update set 
     raw_customer.salutation = stg_customer_stm.salutation,
     raw_customer.first_name = stg_customer_stm.first_name,
@@ -174,25 +174,24 @@ as
 
 create or replace task transformed.play_pipe_customer
   warehouse = ayo_warehouse 
-  after transformed.truncate_staging_table
+  after transformed.truncate_staging_table_customer
 as
   select system$pipe_force_resume('stg.stg_customer_pipe');
   
   
-alter task pause_pipe resume;
-alter task pause_pipe suspend;
+-- start the pipeline: resume child tasks first, root task last
+alter task transformed.play_pipe_customer resume;
+alter task transformed.truncate_staging_table_customer resume;
+alter task transformed.dim_customer_tsk resume;
+alter task transformed.customer_raw_tsk resume;
+alter task transformed.pause_pipe_customer resume;
 
-
-alter task customer_raw_tsk resume;
-alter task dim_customer_tsk resume;
-alter task truncate_staging_table_customer resume;
-alter task play_pipe_customer resume;
-
-
-alter task customer_raw_tsk suspend;
-alter task dim_customer_tsk suspend;
-alter task truncate_staging_table_customer suspend;
-alter task play_pipe_customer suspend;
+-- stop the pipeline: suspend root task first
+alter task transformed.pause_pipe_customer suspend;
+alter task transformed.customer_raw_tsk suspend;
+alter task transformed.dim_customer_tsk suspend;
+alter task transformed.truncate_staging_table_customer suspend;
+alter task transformed.play_pipe_customer suspend;
 
 
 select *  from table(information_schema.task_history()) 
