@@ -58,7 +58,7 @@ create or replace task transformed.pause_pipe_item
 when
   system$stream_has_data('stg.stg_item_stm')
 as
-  alter pipe stg.stg_customer_pipe set pipe_execution_paused = true;
+    alter pipe stg.stg_item_pipe set pipe_execution_paused = true;
 
 
 
@@ -71,7 +71,7 @@ as
 merge into raw.raw_item 
 using 
 (select item_id, item_desc, start_date, end_date, price, item_class, item_category, is_active from 
-(select *, row_number() over(partition by item_id order by start_date desc) as rownum from stg.stg_item_stm) a
+(select *, row_number() over(partition by item_id order by try_to_date(start_date) desc) as rownum from stg.stg_item_stm) a
 where rownum = 1) as stg_item_stm
 on
 raw_item.item_id = stg_item_stm.item_id
@@ -164,30 +164,27 @@ create or replace task transformed.play_pipe_item
   after transformed.truncate_staging_table_item
 as
   select system$pipe_force_resume('stg.stg_item_pipe');
-    
-    
-    
+       
     
   
 
-alter task pause_pipe_item resume;
-alter task pause_pipe_item suspend;
+-- start the pipeline: resume child tasks first, root task last
+alter task transformed.play_pipe_item resume;
+alter task transformed.truncate_staging_table_item resume;
+alter task transformed.dim_item_tsk resume;
+alter task transformed.item_raw_tsk resume;
+alter task transformed.pause_pipe_item resume;
 
-
-alter task item_raw_tsk resume;
-alter task dim_item_tsk resume;
-alter task truncate_staging_table_item resume;
-alter task play_pipe_item resume;
-
-
-alter task item_raw_tsk suspend;
-alter task dim_item_tsk suspend;
-alter task truncate_staging_table_item suspend;
-alter task play_pipe_item suspend;
+-- stop the pipeline: suspend root task first
+alter task transformed.pause_pipe_item suspend;
+alter task transformed.item_raw_tsk suspend;
+alter task transformed.dim_item_tsk suspend;
+alter task transformed.truncate_staging_table_item suspend;
+alter task transformed.play_pipe_item suspend;
 
 
 select *  from table(information_schema.task_history()) 
-where name in ('PAUSE_PIPE_ITEM','ITEM_RAW_TSK','DIM_ITEM_TSK_ITEM','TRUNCATE_STAGING_TABLE_ITEM','PLAY_PIPE_ITEM')
+where name in ('PAUSE_PIPE_ITEM','ITEM_RAW_TSK','DIM_ITEM_TSK','TRUNCATE_STAGING_TABLE_ITEM','PLAY_PIPE_ITEM')
 --and scheduled_time = current_date()
 order by scheduled_time desc;
 
@@ -207,7 +204,7 @@ select system$pipe_status('stg.stg_item_pipe');
 select * from stg.stg_item; --stage table
 select * from stg.stg_item_stm; --raw stream
 select * from raw.raw_item; -- raw table
-select * from raw.dim_item_stm; --transformed stream
+select * from raw.raw_item_stm; --transformed stream
 select * from transformed.dim_item; --transformed table
 
 
@@ -217,4 +214,4 @@ select * from transformed.dim_item; --transformed table
 
 --created all the tasks in transformed schema
 --created pipe in staging schema
---conditions satisfied : insert, update, delete, picks the latest change for the same id in a stream
+--conditions satisfied: insert, update, picks the latest change for the same id in a stream
